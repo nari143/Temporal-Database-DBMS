@@ -13,12 +13,17 @@ managed-Postgres tier of most platforms is not usable here.
 Timescale Cloud has a free trial and gives a real TimescaleDB instance; Fly
 runs the container this repo already builds.
 
+`fly.toml` in the repository root already holds the app configuration: the
+web and worker process groups, the `/healthz` check, HTTPS-only cookies, and
+a `release_command` that applies pending migrations before each release.
+
 ```bash
 # 1. Create the database at https://console.cloud.timescale.com
 #    Copy the connection details it gives you.
 
-# 2. Launch the app without deploying yet, so secrets can be set first.
-fly launch --no-deploy --name <your-app-name>
+# 2. Pick an app name and put it in fly.toml (`app = "..."`), then register
+#    the app without deploying, so secrets can be set first.
+fly launch --no-deploy --copy-config --name <your-app-name>
 
 # 3. Point it at the database and set the session key.
 fly secrets set \
@@ -27,16 +32,13 @@ fly secrets set \
   DB_NAME=tsdb \
   DB_USER=tsdbadmin \
   DB_PASS='<password>' \
-  FLASK_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')" \
-  SESSION_COOKIE_SECURE=true \
-  TRUST_PROXY_HEADERS=true \
-  ENABLE_SCHEDULER=false
+  FLASK_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 
-# 4. Apply the schema and migrations from your machine.
+# 4. Apply the baseline schema ONCE. schema.sql drops every table, so never
+#    run it again on this database; later changes arrive as migrations,
+#    which the release_command applies automatically on every deploy.
 psql "postgresql://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require" \
   -v ON_ERROR_STOP=1 -f schema.sql
-DB_HOST=<host> DB_PORT=<port> DB_NAME=tsdb DB_USER=tsdbadmin DB_PASS='<password>' \
-  python -m scripts.migrate
 
 # 5. Ship it.
 fly deploy
@@ -59,15 +61,46 @@ These differ from the local defaults for a reason:
 | `ENABLE_SCHEDULER` | `false` on web | Each gunicorn worker is a separate process and would otherwise run every job N times. Run the worker as its own Fly process group |
 | `RATELIMIT_STORAGE_URI` | Redis, if scaled past one machine | In-process counters are per-machine, so N machines means N times the allowance |
 
-To run the background jobs, add a second process group to `fly.toml`:
+The background jobs already run as their own `worker` process group in
+`fly.toml`, so limit-order matching and order expiry run exactly once no
+matter how many web machines are serving traffic.
 
-```toml
-[processes]
-  web = "gunicorn --bind 0.0.0.0:8080 --workers 2 backend.app:app"
-  worker = "python -m backend.worker"
+## Continuous deployment from GitHub Actions
+
+`.github/workflows/ci.yml` has a `deploy` job. On every push to `main` (or
+`master`) it waits for all four checks (lint, tests, security, Docker smoke
+test) to pass, then:
+
+1. runs `flyctl deploy`, whose `release_command` applies pending migrations
+   first. A failing migration aborts the release and the old version keeps
+   serving;
+2. rolls the new version out machine by machine, stopping if `/healthz`
+   fails;
+3. polls `https://<app>.fly.dev/healthz` and fails the run if the live app
+   is not healthy.
+
+Pull requests and other branches never deploy. Until the token below exists,
+the job skips itself with a notice instead of failing.
+
+One-time setup, after the manual steps above have worked once:
+
+```bash
+# Create a deploy-only token for this app
+fly tokens create deploy
 ```
 
-and set `ENABLE_SCHEDULER=true` for the worker group only.
+Add it on GitHub under **Settings → Secrets and variables → Actions → New
+repository secret**, named `FLY_API_TOKEN`. The job runs in a `production`
+environment, which GitHub creates on first use; adding required reviewers to
+that environment turns each release into one-click approval (continuous
+delivery) instead of fully automatic continuous deployment.
+
+To roll back a bad release:
+
+```bash
+fly releases --image          # find the previous image
+fly deploy --image <that image>
+```
 
 ## A note on the demo account
 
