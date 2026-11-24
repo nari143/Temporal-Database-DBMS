@@ -1,0 +1,40 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+#
+# Deploys are triggered by the `deploy` job in .github/workflows/ci.yml after
+# every check passes on main, not by Render on each commit. See docs/DEPLOY.md.
+services:
+  - type: web
+    name: temporal-trading
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerCommand: sh scripts/render_start.sh
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      # Database connection. Values marked sync: false are typed into the
+      # Render dashboard when the Blueprint is created, never stored in git.
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: DB_NAME
+        value: tsdb
+      - key: DB_USER
+        value: tsdbadmin
+      # Timescale Cloud only accepts TLS connections; libpq reads this directly.
+      - key: PGSSLMODE
+        value: require
+      - key: DB_POOL_MAX
+        value: "8"
+      # Signs session cookies. Render generates a random value once.
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      # Render terminates TLS and sets X-Forwarded-For in front of the app.
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: TRUST_PROXY_HEADERS
+        value: "true"

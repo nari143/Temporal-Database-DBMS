@@ -151,11 +151,20 @@ def main():
     )
     parser.add_argument("--reset", action="store_true", help="delete existing market data first")
     parser.add_argument("--seed", type=int, default=None, help="RNG seed, for reproducible output")
+    parser.add_argument(
+        "--if-empty",
+        action="store_true",
+        help="do nothing if market_data already has prices (safe to run on every start)",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.seed is not None:
         random.seed(args.seed)
+
+    if args.if_empty and database.query_value("SELECT EXISTS (SELECT 1 FROM market_data)"):
+        logger.info("market_data already has prices; nothing to seed")
+        return
 
     seed(args.days, args.reset)
     refresh_aggregate()
