@@ -133,6 +133,11 @@ PROXY_HOP_COUNT = _integer("PROXY_HOP_COUNT", 1)
 # --- Behaviour ------------------------------------------------------------
 AUTO_INIT_DB = _flag("AUTO_INIT_DB", False)
 ENABLE_SCHEDULER = _flag("ENABLE_SCHEDULER", True)
+# Live price feed run by the worker (backend/price_feed.py). Off by default:
+# locally, scripts/seed_demo.py or the `ingest` compose profile supply prices.
+PRICE_FEED = _flag("PRICE_FEED", False)
+PRICE_FEED_CRYPTO_SECONDS = _integer("PRICE_FEED_CRYPTO_SECONDS", 15)
+PRICE_FEED_STOCK_SECONDS = _integer("PRICE_FEED_STOCK_SECONDS", 60)
 MAX_DEPOSIT = _integer("MAX_DEPOSIT", 500_000)
 MAX_PASSWORD_BYTES = 72  # bcrypt truncates silently beyond this
 MIN_PASSWORD_LENGTH = _integer("MIN_PASSWORD_LENGTH", 8)
