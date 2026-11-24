@@ -1,13 +1,13 @@
 # Temporal Financial Market Analytics Platform
 
-[![CI](https://github.com/raghuram1233/Temporal-Financial-Market-Analytics-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/raghuram1233/Temporal-Financial-Market-Analytics-Platform/actions/workflows/ci.yml)
+[![CI](https://github.com/nari143/Temporal-Database-DBMS/actions/workflows/ci.yml/badge.svg)](https://github.com/nari143/Temporal-Database-DBMS/actions/workflows/ci.yml)
 [![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
 [![PostgreSQL 16 + TimescaleDB 2.15](https://img.shields.io/badge/postgres-16%20%2B%20TimescaleDB%202.15-336791)](https://www.timescale.com/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-261230)](https://docs.astral.sh/ruff/)
 [![Checked with mypy](https://img.shields.io/badge/types-mypy-2a6db2)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> **Live demo:** not yet deployed. [`docs/DEPLOY.md`](docs/DEPLOY.md) is a step-by-step path to one (Fly.io + Timescale Cloud); the link belongs here once it is up.
+> **Live demo: [temporal-trading.onrender.com](https://temporal-trading.onrender.com)** (free instance: the first visit after a quiet spell takes up to a minute to wake). Every push to `main` that passes CI is deployed there automatically; see [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 A trading simulation and analytics platform built on **PostgreSQL + TimescaleDB**,
 with business logic implemented as stored procedures and triggers rather than in
@@ -19,7 +19,7 @@ over tick data, continuous aggregates for OHLC charts, and native compression on
 historical chunks.
 
 ```
-124 tests passing · CI on Python 3.11/3.12 · ruff + mypy enforced · PostgreSQL 16 / TimescaleDB 2.15
+125 tests passing · CI/CD on Python 3.11/3.12 · ruff + mypy enforced · PostgreSQL 16 / TimescaleDB 2.15
 ```
 
 ![Portfolio overview](docs/images/overview.jpg)
@@ -93,7 +93,7 @@ scripts/
   seed_demo.py   Generates synthetic market history
   ingest_data.py Live prices from Binance / Yahoo Finance
 migrations/      Numbered, incremental schema changes
-tests/           124 tests: security, cost basis, order matching, API flow
+tests/           125 tests: security, cost basis, order matching, API flow
 benchmarks/      Performance suite; results in benchmarks/RESULTS.md
 schema.sql       Baseline: tables, hypertables, triggers, procedures, views
 ```
@@ -268,7 +268,7 @@ API.
 
 ```bash
 docker compose up -d db     # TimescaleDB on localhost:5433
-pytest                      # 124 tests
+pytest                      # 125 tests
 pytest -m "not db"          # security tests only, no database needed
 pytest --cov=backend --cov-report=term-missing
 
