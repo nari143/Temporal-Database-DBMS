@@ -232,9 +232,9 @@ jobs:
         run: docker compose down -v
 
   # Continuous deployment: every push to main that passes all four jobs above
-  # is released to Fly.io. Pull requests and other branches never deploy.
+  # is released to Render. Pull requests and other branches never deploy.
   deploy:
-    name: Deploy to Fly.io
+    name: Deploy to Render
     needs: [lint, test, security, docker]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
@@ -244,44 +244,42 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      APP_URL: ${{ vars.APP_URL }}
     steps:
-      - uses: actions/checkout@v4
-
-      # Until the token secret is added (docs/DEPLOY.md), skip with a notice
-      # instead of failing every push.
+      # Until the hook secret and APP_URL variable exist (docs/DEPLOY.md),
+      # skip with a notice instead of failing every push.
       - name: Check deployment is configured
         id: configured
         run: |
-          if [ -z "$FLY_API_TOKEN" ]; then
-            echo "::notice::FLY_API_TOKEN secret is not set, so deployment was skipped. See docs/DEPLOY.md."
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ] || [ -z "$APP_URL" ]; then
+            echo "::notice::RENDER_DEPLOY_HOOK_URL secret or APP_URL variable is not set, so deployment was skipped. See docs/DEPLOY.md."
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install flyctl
+      # Deploys exactly the commit that just passed CI. On start, the
+      # container applies pending migrations before serving traffic, and
+      # Render only switches traffic once /healthz answers.
+      - name: Trigger the deploy
         if: steps.configured.outputs.enabled == 'true'
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        run: curl -fsS -X POST "${RENDER_DEPLOY_HOOK_URL}&ref=${GITHUB_SHA}" > /dev/null
 
-      # fly.toml's release_command applies pending migrations first; if one
-      # fails, the release is aborted and the running version keeps serving.
-      - name: Deploy
-        if: steps.configured.outputs.enabled == 'true'
-        run: flyctl deploy --remote-only --wait-timeout 300
-
-      - name: Smoke-test the live app
+      - name: Wait until this commit is live
         if: steps.configured.outputs.enabled == 'true'
         run: |
-          app=$(sed -nE 's/^app *= *"([^"]+)".*/\1/p' fly.toml)
-          url="https://${app}.fly.dev"
-          for i in $(seq 1 20); do
-            if curl -fs "$url/healthz" | grep -q '"status":"ok"'; then
-              echo "Live and healthy: $url"
+          url="${APP_URL%/}/healthz"
+          # Free instances sleep when idle and build from scratch, so allow
+          # up to 15 minutes.
+          for i in $(seq 1 60); do
+            body=$(curl -fs --max-time 60 "$url" || true)
+            if echo "$body" | grep -q "$GITHUB_SHA"; then
+              echo "Live and healthy: $APP_URL is running $GITHUB_SHA"
               exit 0
             fi
-            sleep 6
+            sleep 15
           done
-          echo "::error::$url/healthz did not report healthy after deploy."
-          echo "Roll back with: flyctl releases --image, then flyctl deploy --image <previous image>"
+          echo "::error::$url never reported version $GITHUB_SHA. Last response: $body"
+          echo "Check the deploy log in the Render dashboard; the previous version keeps serving."
           exit 1
