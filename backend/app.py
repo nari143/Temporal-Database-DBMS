@@ -181,7 +181,13 @@ def healthz():
     except Exception as exc:
         logger.warning("Health check failed: %s", exc)
         return jsonify({"status": "degraded", "database": "unreachable"}), 503
-    return jsonify({"status": "ok", "database": "ok"}), 200
+    body = {"status": "ok", "database": "ok"}
+    # Render sets RENDER_GIT_COMMIT on every deploy. CI waits for it to match
+    # the commit it deployed before declaring the release live.
+    commit = os.getenv("RENDER_GIT_COMMIT")
+    if commit:
+        body["version"] = commit
+    return jsonify(body), 200
 
 
 # --------------------------------------------------------------------------
