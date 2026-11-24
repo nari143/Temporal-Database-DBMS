@@ -105,7 +105,7 @@ jobs:
         run: |
           python -m scripts.migrate --status
           # A second run must find nothing pending.
-          python -m scripts.migrate | grep -q "up to date"
+          python -m scripts.migrate 2>&1 | grep -q "up to date"
 
       - name: Verify TimescaleDB features are present
         run: |
