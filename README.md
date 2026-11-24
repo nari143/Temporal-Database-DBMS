@@ -19,7 +19,7 @@ over tick data, continuous aggregates for OHLC charts, and native compression on
 historical chunks.
 
 ```
-125 tests passing · CI/CD on Python 3.11/3.12 · ruff + mypy enforced · PostgreSQL 16 / TimescaleDB 2.15
+130 tests passing · CI/CD on Python 3.11/3.12 · ruff + mypy enforced · PostgreSQL 16 / TimescaleDB 2.15
 ```
 
 ![Portfolio overview](docs/images/overview.jpg)
@@ -93,7 +93,7 @@ scripts/
   seed_demo.py   Generates synthetic market history
   ingest_data.py Live prices from Binance / Yahoo Finance
 migrations/      Numbered, incremental schema changes
-tests/           125 tests: security, cost basis, order matching, API flow
+tests/           130 tests: security, cost basis, order matching, API flow
 benchmarks/      Performance suite; results in benchmarks/RESULTS.md
 schema.sql       Baseline: tables, hypertables, triggers, procedures, views
 ```
@@ -268,7 +268,7 @@ API.
 
 ```bash
 docker compose up -d db     # TimescaleDB on localhost:5433
-pytest                      # 125 tests
+pytest                      # 130 tests
 pytest -m "not db"          # security tests only, no database needed
 pytest --cov=backend --cov-report=term-missing
 
