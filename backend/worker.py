@@ -12,7 +12,7 @@ import logging
 import signal
 import threading
 
-from . import config
+from . import config, price_feed
 from .app import expire_old_orders, process_pending_limit_orders, scheduler
 
 logger = logging.getLogger(__name__)
@@ -44,8 +44,28 @@ def main():
     scheduler.add_job(
         expire_old_orders, "interval", minutes=5, id="expire_orders", replace_existing=True
     )
+    if config.PRICE_FEED:
+        # coalesce + max_instances: a slow provider skips a beat rather than
+        # stacking up overlapping fetches.
+        for asset_type, seconds in (
+            ("crypto", config.PRICE_FEED_CRYPTO_SECONDS),
+            ("stock", config.PRICE_FEED_STOCK_SECONDS),
+        ):
+            scheduler.add_job(
+                price_feed.update_prices,
+                "interval",
+                seconds=seconds,
+                args=[asset_type],
+                id=f"price_feed_{asset_type}",
+                replace_existing=True,
+                coalesce=True,
+                max_instances=1,
+            )
     scheduler.start()
-    logger.info("Worker started: limit matching every 30s, expiry every 5m")
+    logger.info(
+        "Worker started: limit matching every 30s, expiry every 5m, price feed %s",
+        "on" if config.PRICE_FEED else "off",
+    )
 
     _shutdown.wait()
     scheduler.shutdown(wait=True)

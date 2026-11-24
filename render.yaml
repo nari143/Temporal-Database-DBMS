@@ -38,3 +38,7 @@ services:
         value: "true"
       - key: TRUST_PROXY_HEADERS
         value: "true"
+      # Live prices: Binance (crypto, every 15 s) and Yahoo Finance (stocks,
+      # every 60 s), with a small random step when a provider is unavailable.
+      - key: PRICE_FEED
+        value: "true"
