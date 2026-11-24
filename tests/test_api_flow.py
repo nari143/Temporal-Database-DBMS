@@ -301,3 +301,7 @@ class TestHealthEndpoint:
         resp = client.get("/healthz")
         assert resp.status_code == 200
         assert resp.get_json() == {"status": "ok", "database": "ok"}
+
+    def test_healthz_reports_the_deployed_commit(self, client, clean_db, monkeypatch):
+        monkeypatch.setenv("RENDER_GIT_COMMIT", "0123abc")
+        assert client.get("/healthz").get_json()["version"] == "0123abc"
